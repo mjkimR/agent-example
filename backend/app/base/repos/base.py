@@ -8,7 +8,7 @@ from sqlalchemy import (
 from sqlalchemy import Column, inspect as sa_inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.selectable import Select
-
+from sqlalchemy.sql.elements import ColumnElement, UnaryExpression
 from pydantic import BaseModel
 
 from app.base.schemas.paginated import PaginatedList
@@ -61,7 +61,11 @@ class BaseRepository(
             for pk_col, value in zip(self._primary_keys, pk_values)
         ]
 
-    def _select(self, where=(), order_by=()) -> Select:
+    def _select(
+            self,
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            order_by: Sequence[UnaryExpression] = ()
+    ) -> Select:
         stmt = select(self.model)
         if where is not None:
             if isinstance(where, Sequence):
@@ -81,8 +85,8 @@ class BaseRepository(
     async def get(
             self,
             session: AsyncSession,
-            where=None,
-            order_by=None,
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            order_by: Sequence[UnaryExpression] = ()
     ) -> Optional[ModelType]:
         stmt = self._select(where, order_by)
         stmt = stmt.limit(1)
@@ -94,8 +98,8 @@ class BaseRepository(
             self,
             session: AsyncSession,
             pk: PrimaryKeyType,
-            where=None,
-            order_by=None,
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            order_by: Sequence[UnaryExpression] = ()
     ) -> Optional[ModelType]:
         filters = self._get_primary_key_filters(pk)
         return await self.get(session, where=filters or where, order_by=order_by)
@@ -103,7 +107,7 @@ class BaseRepository(
     async def exists(
             self,
             session: AsyncSession,
-            where=None,
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
     ) -> bool:
         stmt = select(literal(1))  # select 1
         stmt = stmt.select_from(self.model)
@@ -131,8 +135,8 @@ class BaseRepository(
             session: AsyncSession,
             offset: int = 0,
             limit: Optional[int] = 100,
-            where=(),
-            order_by=(),
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            order_by: Sequence[UnaryExpression] = ()
     ) -> PaginatedList[ModelType]:
         if limit is not None and limit < 0:
             raise ValueError("Limit must be non-negative.")
@@ -165,8 +169,8 @@ class BaseRepository(
     async def get_all(
             self,
             session: AsyncSession,
-            where=(),
-            order_by=(),
+            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            order_by: Sequence[UnaryExpression] = ()
     ) -> Sequence[ModelType]:
         res = await self.get_multi(
             session,
@@ -226,7 +230,7 @@ class BaseRepository(
                     f"Soft delete is configured to use '{self.deleted_at_column}', but it's missing in model {self.model.__name__}."
                 )
 
-            update_values = {self.is_deleted_column: True}
+            update_values: dict[str, Any] = {self.is_deleted_column: True}
             if self.deleted_at_column and hasattr(self.model, self.deleted_at_column):
                 update_values[self.deleted_at_column] = datetime.now(timezone.utc)
 
