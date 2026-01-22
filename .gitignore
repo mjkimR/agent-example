@@ -13,3 +13,6 @@ wheels/
 .env
 .test*
 logs/*
+
+# IDE
+.idea
