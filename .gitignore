@@ -6,13 +6,19 @@ dist/
 wheels/
 *.egg-info
 
+# IDE
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.favorites.json
+
 # Virtual environments
 .venv
 
 # Others
 .env
 .test*
-logs/*
-
-# IDE
-.idea
+**/logs/*

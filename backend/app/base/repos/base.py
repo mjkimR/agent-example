@@ -18,6 +18,7 @@ CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 PrimaryKeyType = Union[Sequence[Union[str, int, uuid.UUID]], Union[str, int, uuid.UUID]]
+WhereClause = ColumnElement[bool] | Sequence[ColumnElement[bool]]
 
 
 class BaseRepository(
@@ -34,6 +35,10 @@ class BaseRepository(
 
     def __init__(self):
         self._primary_keys = self._get_primary_keys(self.model)
+
+    @property
+    def model_name(self):
+        return self.model.__name__
 
     def _get_primary_keys(self, model: type[ModelType]) -> Sequence[Column]:
         """Get the primary key of a SQLAlchemy model."""
@@ -63,7 +68,7 @@ class BaseRepository(
 
     def _select(
             self,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            where: WhereClause = (),
             order_by: Sequence[UnaryExpression] = ()
     ) -> Select:
         stmt = select(self.model)
@@ -85,7 +90,7 @@ class BaseRepository(
     async def get(
             self,
             session: AsyncSession,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            where: WhereClause = (),
             order_by: Sequence[UnaryExpression] = ()
     ) -> Optional[ModelType]:
         stmt = self._select(where, order_by)
@@ -98,16 +103,31 @@ class BaseRepository(
             self,
             session: AsyncSession,
             pk: PrimaryKeyType,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
-            order_by: Sequence[UnaryExpression] = ()
     ) -> Optional[ModelType]:
-        filters = self._get_primary_key_filters(pk)
-        return await self.get(session, where=filters or where, order_by=order_by)
+        if not self._primary_keys:
+            raise ValueError("No primary key defined for this model.")
+
+        pk_values: Union[Sequence, Any]
+        if not isinstance(pk, Sequence) or isinstance(pk, str):
+            pk_values = [pk]
+        else:
+            pk_values = pk
+
+        if len(self._primary_keys) != len(pk_values):
+            raise ValueError(
+                f"Incorrect number of primary key values provided. Expected {len(self._primary_keys)}, got {len(pk_values)}.")
+
+        if len(self._primary_keys) == 1:
+            ident = pk_values[0]
+        else:
+            ident = dict(zip([pk_col.key for pk_col in self._primary_keys], pk_values))
+
+        return await session.get(self.model, ident)
 
     async def exists(
             self,
             session: AsyncSession,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            where: WhereClause = (),
     ) -> bool:
         stmt = select(literal(1))  # select 1
         stmt = stmt.select_from(self.model)
@@ -122,8 +142,10 @@ class BaseRepository(
             self,
             session: AsyncSession,
             obj_in: CreateSchemaType,
+            **update_fields: Any,
     ) -> ModelType:
         obj_dict = obj_in.model_dump()
+        obj_dict.update(update_fields)
         db_obj: ModelType = self.model(**obj_dict)
         session.add(db_obj)
         await session.flush()
@@ -135,8 +157,8 @@ class BaseRepository(
             session: AsyncSession,
             offset: int = 0,
             limit: Optional[int] = 100,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
-            order_by: Sequence[UnaryExpression] = ()
+            where: WhereClause = (),
+            order_by: Sequence[UnaryExpression] = (),
     ) -> PaginatedList[ModelType]:
         if limit is not None and limit < 0:
             raise ValueError("Limit must be non-negative.")
@@ -169,7 +191,7 @@ class BaseRepository(
     async def get_all(
             self,
             session: AsyncSession,
-            where: ColumnElement[bool] | Sequence[ColumnElement[bool]] = (),
+            where: WhereClause = (),
             order_by: Sequence[UnaryExpression] = ()
     ) -> Sequence[ModelType]:
         res = await self.get_multi(
@@ -187,6 +209,7 @@ class BaseRepository(
             pk: PrimaryKeyType,
             obj_in: Union[UpdateSchemaType, dict[str, Any]],
             return_updated_obj: bool = True,
+            **update_fields: Any,
     ) -> Optional[ModelType]:
         filters = self._get_primary_key_filters(pk)
         if isinstance(obj_in, dict):
@@ -194,6 +217,7 @@ class BaseRepository(
         else:
             # exclude_unset=True
             update_data = obj_in.model_dump(exclude_unset=True)
+        update_data.update(update_fields)
 
         if not update_data:
             raise ValueError("Update data cannot be empty.")
@@ -240,7 +264,7 @@ class BaseRepository(
 
         result = await session.execute(stmt)
 
-        deleted_or_updated = result.rowcount > 0
+        deleted_or_updated = int(result.rowcount) > 0
         if deleted_or_updated:
             await session.flush()
         return deleted_or_updated

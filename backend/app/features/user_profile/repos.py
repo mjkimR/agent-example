@@ -1,5 +1,3 @@
-"""User profile repository."""
-
 from typing import Optional
 
 from sqlalchemy import select

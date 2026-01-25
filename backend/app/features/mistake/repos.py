@@ -1,5 +1,3 @@
-"""Mistake repository."""
-
 from typing import Sequence
 
 from sqlalchemy import select

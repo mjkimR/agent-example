@@ -1,5 +1,3 @@
-"""Vocabulary repository."""
-
 from datetime import datetime, timezone
 from typing import Sequence
 

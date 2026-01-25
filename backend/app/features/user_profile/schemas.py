@@ -1,5 +1,3 @@
-"""User profile schemas."""
-
 from pydantic import BaseModel, Field
 
 

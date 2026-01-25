@@ -1,5 +1,3 @@
-"""ChromaDB vector store for semantic search."""
-
 from typing import Optional
 import chromadb
 from chromadb.config import Settings as ChromaSettings

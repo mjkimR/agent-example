@@ -1,5 +1,3 @@
-"""Feedback log model."""
-
 import datetime
 from typing import Optional
 

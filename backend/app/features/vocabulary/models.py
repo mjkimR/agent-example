@@ -1,5 +1,3 @@
-"""Vocabulary model."""
-
 import datetime
 from typing import Optional, TYPE_CHECKING
 

@@ -1,5 +1,3 @@
-"""Mistake model."""
-
 import datetime
 import uuid
 from typing import Optional, TYPE_CHECKING
