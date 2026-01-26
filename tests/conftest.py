@@ -1,0 +1,78 @@
+"""
+Main conftest.py for test configuration and shared fixtures.
+
+This is the root configuration file for pytest. It provides:
+- Pytest options and hooks
+- Logging configuration
+- Imports of all fixtures from the fixtures package
+
+Test Structure:
+    tests/
+    ├── conftest.py          <- You are here
+    ├── fixtures/            <- Reusable fixtures (db, auth, clients)
+    ├── factories/           <- Factory classes for test data
+    ├── utils/               <- Test utilities and helpers
+    ├── unit/                <- Unit tests (with mocks)
+    ├── integration/         <- Integration tests (real DB)
+    └── e2e/                 <- End-to-end API tests
+"""
+
+import logging
+import pytest
+
+# Configure logging - reduce noise from SQLAlchemy and httpx
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
+
+# =============================================================================
+# Pytest Hooks & Options
+# =============================================================================
+
+def pytest_addoption(parser):
+    """Add custom command line options for pytest."""
+    parser.addoption(
+        "--db-type",
+        action="store",
+        default="sqlite",
+        help="Select database type for tests (sqlite, postgres)",
+    )
+
+
+@pytest.fixture(scope="session")
+def db_type(request):
+    """Fixture to determine the database type for tests."""
+    return request.config.getoption("--db-type")
+
+
+# =============================================================================
+# Import Fixtures
+# =============================================================================
+
+# Database fixtures
+from tests.fixtures.db import (
+    event_loop_policy,
+    async_engine,
+    session_maker_fixture,
+    session_fixture,
+)
+
+# Authentication fixtures
+from tests.fixtures.auth import (
+    user_service,
+    admin_user,
+    admin_token,
+    admin_headers,
+)
+
+# HTTP Client fixtures
+from tests.fixtures.clients import (
+    AsyncClientWithJson,
+    app_fixture,
+    client_fixture,
+    unauthenticated_client_fixture,
+)
+
+# Test data fixtures
+# Import data frequently changed, so import with *.
+from tests.fixtures.data import *
