@@ -3,7 +3,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.base.repos import BaseRepository
+from app.base.repos.base import BaseRepository
 from app.features.mistake.models import MistakeModel
 from app.features.mistake.schemas import MistakeCreate, MistakeUpdate
 

@@ -3,7 +3,7 @@ from typing import Sequence
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.base.repos import BaseRepository
+from app.base.repos.base import BaseRepository
 from app.features.feedback.models import FeedbackLogModel
 from app.features.feedback.schemas import FeedbackCreate, FeedbackUpdate
 

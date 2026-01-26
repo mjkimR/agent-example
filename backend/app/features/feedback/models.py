@@ -1,10 +1,14 @@
 import datetime
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+import uuid
 
-from sqlalchemy import String, Text, DateTime
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ForeignKey, String, Text, DateTime
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.base.models import Base, UUIDMixin
+from app.base.models.mixin import Base, UUIDMixin
+    
+if TYPE_CHECKING:
+    from app.features.user_profile.models import UserProfileModel
 
 
 class FeedbackLogModel(Base, UUIDMixin):
@@ -18,4 +22,7 @@ class FeedbackLogModel(Base, UUIDMixin):
     timestamp: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.datetime.now
     )
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
 
+    # Relationships
+    profile: Mapped["UserProfileModel"] = relationship()

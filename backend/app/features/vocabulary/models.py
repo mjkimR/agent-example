@@ -1,13 +1,16 @@
 import datetime
 from typing import Optional, TYPE_CHECKING
+import uuid
 
-from sqlalchemy import String, Text, Integer, Float, DateTime, JSON, Index
+from sqlalchemy import ForeignKey, String, Text, Integer, Float, DateTime, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.base.models import Base, UUIDMixin, TimestampMixin
+from app.base.models.mixin import Base, UUIDMixin, TimestampMixin
 
 if TYPE_CHECKING:
     from app.features.mistake.models import MistakeModel
+    from app.features.user_profile.models import UserProfileModel
+
 
 
 class VocabularyModel(Base, UUIDMixin, TimestampMixin):
@@ -15,10 +18,12 @@ class VocabularyModel(Base, UUIDMixin, TimestampMixin):
 
     __tablename__ = "vocabulary"
 
-    item: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    item: Mapped[str] = mapped_column(Text, unique=True, index=True)
     meaning: Mapped[str] = mapped_column(Text)
     word_type: Mapped[str] = mapped_column(String(50), default="other")
     example_sentence: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
 
     # SM-2 SRS fields
     mastery_level: Mapped[int] = mapped_column(Integer, default=0)
@@ -33,6 +38,7 @@ class VocabularyModel(Base, UUIDMixin, TimestampMixin):
 
     # Relationships
     mistakes: Mapped[list["MistakeModel"]] = relationship(back_populates="vocabulary")
+    profile: Mapped["UserProfileModel"] = relationship()
 
     __table_args__ = (
         Index("idx_vocabulary_mastery", "mastery_level"),

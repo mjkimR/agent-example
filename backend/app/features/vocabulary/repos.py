@@ -4,7 +4,7 @@ from typing import Sequence
 from sqlalchemy import select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.base.repos import BaseRepository
+from app.base.repos.base import BaseRepository
 from app.features.vocabulary.models import VocabularyModel
 from app.features.vocabulary.schemas import VocabularyCreate, VocabularyUpdate
 

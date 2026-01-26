@@ -5,10 +5,11 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import String, Text, DateTime, ForeignKey, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.base.models import Base, UUIDMixin
+from app.base.models.mixin import Base, UUIDMixin
 
 if TYPE_CHECKING:
     from app.features.vocabulary.models import VocabularyModel
+    from app.features.user_profile.models import UserProfileModel
 
 
 class MistakeModel(Base, UUIDMixin):
@@ -26,6 +27,9 @@ class MistakeModel(Base, UUIDMixin):
     timestamp: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.datetime.now
     )
+    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
+
 
     # Relationships
     vocabulary: Mapped[Optional["VocabularyModel"]] = relationship(back_populates="mistakes")
+    profile: Mapped["UserProfileModel"] = relationship()
