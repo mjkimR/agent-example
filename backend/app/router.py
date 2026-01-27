@@ -1,7 +1,7 @@
 from starlette.responses import Response
 
 from fastapi import APIRouter
-from app.features.user_profile.api import v1_user_profile_router
+from app.features.user_profile import v1_user_profile_router
 
 router = APIRouter(prefix="/api")
 v1_router = APIRouter(prefix="/v1")

@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import Any
+import uuid
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
+from app.base.schemas.mixin import UUIDSchemaMixin, TimestampSchemaMixin
 
 
 class VocabularyCreate(BaseModel):
@@ -34,4 +36,23 @@ class VocabularyUpdate(BaseModel):
     last_reviewed_at: datetime | None = None
     next_review_at: datetime | None = None
     context_history: list[dict[str, Any]] | None = None
+
+
+class VocabularyRead(UUIDSchemaMixin, TimestampSchemaMixin, BaseModel):
+    """Schema for reading a vocabulary item."""
+    item: str
+    meaning: str
+    word_type: str
+    example_sentence: str | None
+    mastery_level: int
+    easiness_factor: float
+    repetition_count: int
+    interval_days: int
+    last_reviewed_at: datetime | None
+    next_review_at: datetime | None
+    context_history: list[dict[str, Any]]
+    user_profile_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
 

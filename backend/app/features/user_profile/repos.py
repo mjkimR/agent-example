@@ -3,7 +3,7 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.base.repos import BaseRepository
+from app.base.repos.base import BaseRepository
 from app.features.user_profile.models import UserProfileModel
 from app.features.user_profile.schemas import UserProfileCreate, UserProfileUpdate
 

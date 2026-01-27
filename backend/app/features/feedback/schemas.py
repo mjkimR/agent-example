@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.base.schemas.mixin import UUIDSchemaMixin, TimestampSchemaMixin
+
 
 class FeedbackCreate(BaseModel):
     """Schema for creating a feedback log."""
@@ -19,3 +21,13 @@ class FeedbackUpdate(BaseModel):
     content: str | None = None
     context: str | None = None
 
+
+class FeedbackRead(UUIDSchemaMixin, TimestampSchemaMixin, BaseModel):
+    """Schema for reading a feedback log."""
+
+    feedback_type: str
+    content: str
+    context: str | None = None
+
+    class Config:
+        orm_mode = True

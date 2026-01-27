@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Depends
 
 from app.features.user_profile.schemas import UserProfileCreate, UserProfileUpdate
-from app.features.user_profile.usecase import (
+from app.features.user_profile.usecases import (
     GetUserProfileUseCase,
     GetUserProfileListUseCase,
     CreateUserProfileUseCase,

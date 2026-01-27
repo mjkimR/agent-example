@@ -1,6 +1,4 @@
-"""User profile use cases."""
-
-from app.features.user_profile.usecase.crud import (
+from app.features.user_profile.usecases.crud import (
     GetUserProfileUseCase,
     GetUserProfileListUseCase,
     CreateUserProfileUseCase,
@@ -17,4 +15,3 @@ __all__ = [
     "DeleteUserProfileUseCase",
     "GetOrCreateUserProfileUseCase",
 ]
-

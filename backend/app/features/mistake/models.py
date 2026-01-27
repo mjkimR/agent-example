@@ -27,9 +27,8 @@ class MistakeModel(Base, UUIDMixin):
     timestamp: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), default=datetime.datetime.now
     )
-    profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"), nullable=False)
-
+    user_profile_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("user_profile.id"), nullable=False)
 
     # Relationships
     vocabulary: Mapped[Optional["VocabularyModel"]] = relationship(back_populates="mistakes")
-    profile: Mapped["UserProfileModel"] = relationship()
+    user_profile: Mapped["UserProfileModel"] = relationship(back_populates="mistakes")

@@ -19,6 +19,7 @@ TService = TypeVar("TService", bound=Union[
     Any
 ])
 
+
 class BaseGetUseCase(BaseUseCase, Generic[TService, ModelType, TContextKwargs]):
     def __init__(self, service: TService):
         self.service = service
