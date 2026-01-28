@@ -32,7 +32,7 @@ catalog:
       api_key: llm-studio
       base_url: http://127.0.0.1:1234/v1
 
-groups:
+aliases:
   # - Default Models
   - name: llm-default
     type: llm
@@ -44,7 +44,7 @@ groups:
     target: embedding-llama2-7b
     help: "Default embedding model for general purposes."
 
-  # - LLM Model Groups
+  # - LLM Model aliases
   - name: llm-high-performance
     type: llm
     target: gemini-2.5-flash
@@ -58,3 +58,19 @@ groups:
     fallbacks:
       - llm-default
     help: "Smaller LLM model for lightweight tasks."
+
+groups:
+  # - LLM Model group
+  - name: llm-models
+    type: llm
+    members:
+      - llm-default
+      - llm-high-performance
+      - llm-small
+    default: llm-default
+
+  # - Embedding Model group
+  - name: embedding-models
+    type: text-embedding
+    members:
+      - embedding-default

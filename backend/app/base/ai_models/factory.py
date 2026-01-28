@@ -6,7 +6,7 @@ from threading import Lock
 
 import yaml
 
-from app.base.ai_models.schemas import AIModelCatalogItem, AIModelGroupCatalogItem, AIModelType, AICatalogItem
+from app.base.ai_models.schemas import AIModelItem, AIModelAliasItem, AIModelType, AICatalogItem
 from app.core.config import get_app_path
 from app.core.logger import logger
 from app.base.ai_models.factory_embedding import EmbeddingFactory
@@ -56,24 +56,24 @@ class AIModelFactory:
         logger.info(f"[System] Loading Catalog from {config_path}...")
         raw_config = ConfigLoader.load_yaml_with_env(config_path)
 
-        self.catalog: dict[str, AIModelCatalogItem] = {}
-        self.groups: dict[str, AIModelGroupCatalogItem] = {}
+        self.catalog: dict[str, AIModelItem] = {}
+        self.aliases: dict[str, AIModelAliasItem] = {}
         for item in raw_config.get('catalog', []):
             if "name" not in item:
                 raise ValueError("Each catalog item must have a 'name' field.")
             name = item["name"]
             try:
-                self.catalog[name] = AIModelCatalogItem(**item)
+                self.catalog[name] = AIModelItem(**item)
             except Exception as e:
                 raise ValueError(f"Error in catalog item '{name}': {str(e)}") from e
-        for item in raw_config.get('groups', []):
+        for item in raw_config.get('aliases', []):
             if "name" not in item:
-                raise ValueError("Each group item must have a 'name' field.")
+                raise ValueError("Each alias item must have a 'name' field.")
             name = item["name"]
             try:
-                self.groups[name] = AIModelGroupCatalogItem(**item)
+                self.aliases[name] = AIModelAliasItem(**item)
             except Exception as e:
-                raise ValueError(f"Error in group item '{name}': {str(e)}") from e
+                raise ValueError(f"Error in alias item '{name}': {str(e)}") from e
 
         self._validate_config()
 
@@ -85,50 +85,50 @@ class AIModelFactory:
 
     def _validate_config(self):
         """Validate the integrity and type correctness of the configuration file."""
-        # 1. Group Item Validation
-        for name, group in self.groups.items():
-            # (5) Circular Group target Check & Final Target Resolution
+        # 1. Alias Item Validation
+        for name, alias in self.aliases.items():
+            # (5) Circular Alias target Check & Final Target Resolution
             visited = set()
-            current_target_name = group.target
+            current_target_name = alias.target
             path = [name]
-            while current_target_name in self.groups:
+            while current_target_name in self.aliases:
                 if current_target_name in visited:
-                    raise ValueError(f"Configuration Error: Circular reference detected in group target chain: {' -> '.join(path)}")
+                    raise ValueError(f"Configuration Error: Circular reference detected in alias target chain: {' -> '.join(path)}")
                 visited.add(current_target_name)
                 path.append(current_target_name)
-                current_target_name = self.groups[current_target_name].target
+                current_target_name = self.aliases[current_target_name].target
 
             resolved_target_name = current_target_name
 
             # (1) Target Existence Check
             if resolved_target_name not in self.catalog:
-                raise ValueError(f"Configuration Error: Group '{name}' refers to non-existent target '{resolved_target_name}'.")
+                raise ValueError(f"Configuration Error: Alias '{name}' refers to non-existent target '{resolved_target_name}'.")
 
-            # (2) Type Consistency Check (Group Type vs Target Type)
-            group_type = group.type
+            # (2) Type Consistency Check (Alias Type vs Target Type)
+            alias_type = alias.type
             target_type = self.catalog[resolved_target_name].type
-            if group_type != target_type:
-                raise ValueError(f"Configuration Error: Group '{name}' type ({group_type.value}) does not match final target '{resolved_target_name}' type ({target_type.value}).")
+            if alias_type != target_type:
+                raise ValueError(f"Configuration Error: Alias '{name}' type ({alias_type.value}) does not match final target '{resolved_target_name}' type ({target_type.value}).")
 
             # (3) Fallback Validation
-            for fb_name in group.fallbacks:
+            for fb_name in alias.fallbacks:
                 if fb_name in self.catalog:
                     fb_type = self.catalog[fb_name].type
-                elif fb_name in self.groups:
-                    fb_type = self.groups[fb_name].type
+                elif fb_name in self.aliases:
+                    fb_type = self.aliases[fb_name].type
                 else:
-                    raise ValueError(f"Configuration Error: Group '{name}' has fallback to non-existent model/group '{fb_name}'.")
-                if group_type != fb_type:
-                    raise ValueError(f"Configuration Error: Group '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match group type ({group_type.value}).")
+                    raise ValueError(f"Configuration Error: Alias '{name}' has fallback to non-existent model/alias '{fb_name}'.")
+                if alias_type != fb_type:
+                    raise ValueError(f"Configuration Error: Alias '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match alias type ({alias_type.value}).")
 
             # (4) Self-referential Fallback Check
-            if name in group.fallbacks:
-                raise ValueError(f"Configuration Error: Group '{name}' cannot have itself as a fallback.")
+            if name in alias.fallbacks:
+                raise ValueError(f"Configuration Error: Alias '{name}' cannot have itself as a fallback.")
 
         # 2. Name Conflict Check
         catalog_names = set(self.catalog.keys())
-        group_names = set(self.groups.keys())
-        conflicts = catalog_names.intersection(group_names)
+        alias_names = set(self.aliases.keys())
+        conflicts = catalog_names.intersection(alias_names)
         if conflicts:
             raise ValueError(f"Configuration Error: Model names must be unique. Conflicts found: {conflicts}")
 
@@ -161,12 +161,12 @@ class AIModelFactory:
         [Note]
         - Only one-level fallback is supported; multi-level fallback chains are not supported.
         """
-        if name in self.groups:
-            config = self.groups[name]
-            # Verify the group is an LLM group
+        if name in self.aliases:
+            config = self.aliases[name]
+            # Verify the alias is an LLM alias
             if config.type != AIModelType.LLM:
                 raise ValueError(
-                    f"Type mismatch: Group '{name}' is type '{config.type.value}', but LLM fallbacks were requested."
+                    f"Type mismatch: Alias '{name}' is type '{config.type.value}', but LLM fallbacks were requested."
                 )
         elif name in self.catalog:
             # A base model can also have fallbacks defined.
@@ -176,7 +176,7 @@ class AIModelFactory:
                     f"Type mismatch: Model '{name}' is type '{config.type.value}', but LLM fallbacks were requested."
                 )
         else:
-            raise ValueError(f"Model or group '{name}' not found in catalog or groups.")
+            raise ValueError(f"Model or Alias '{name}' not found in catalog or aliases.")
 
         fallback_models = []
         for fb_name in config.fallbacks:
@@ -193,12 +193,12 @@ class AIModelFactory:
         model = self._get_embedding(name)
         return model
 
-    def _resolve_config(self, name: str, expected_type: AIModelType | str | None = None) -> AIModelCatalogItem:
+    def _resolve_config(self, name: str, expected_type: AIModelType | str | None = None) -> AIModelItem:
         """Name resolution"""
-        # 1. Group Resolution (If name is a group, resolve to target model)
-        while name in self.groups:
-            group = self.groups[name]
-            name = group.target
+        # 1. Alias Resolution (If name is an alias, resolve to target model)
+        while name in self.aliases:
+            alias = self.aliases[name]
+            name = alias.target
 
         # 2. Existence Check
         if name not in self.catalog:
@@ -235,9 +235,9 @@ class AIModelFactory:
             if info.type == target_type:
                 results.append(info.to_catalog_item())
 
-        # 2. Groups
-        for name, info in self.groups.items():
+        # 2. Aliases
+        for name, info in self.aliases.items():
             if info.type == target_type:
                 results.append(info.to_catalog_item())
 
-        return sorted(results, key=lambda x: (x.kind == "group", x.provider, x.name))
+        return sorted(results, key=lambda x: (x.kind == "alias", x.provider, x.name))

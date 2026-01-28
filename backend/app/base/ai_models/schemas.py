@@ -13,20 +13,20 @@ class AIModelType(str, Enum):
 
 
 class AICatalogItem(BaseModel):
-    name: str = Field(..., description="The name of the model or group")
-    kind: Literal["model", "group"] = Field(..., description="Indicates whether this is a model or group")
+    name: str = Field(..., description="The name of the model or alias")
+    kind: Literal["model", "alias"] = Field(..., description="Indicates whether this is a model or alias")
     type: AIModelType = Field(..., description="The type of the model")
-    help: str | None = Field(default=None, description="Description of the model or group")
-    provider: str | None = Field(default=None, description="The provider of the model (provider is 'group' for groups)")
+    help: str | None = Field(default=None, description="Description of the model or alias")
+    provider: str | None = Field(default=None, description="The provider of the model (provider is 'alias' for aliases)")
 
 
-class AIModelCatalogItem(BaseModel):
+class AIModelItem(BaseModel):
     name: str = Field(..., description="The name of the model")
     type: AIModelType = Field(..., description="The type of the model")
     provider: str = Field(..., description="The provider of the model")
     help: str | None = Field(default=None, description="Description of the model")
     args: dict[str, Any] = Field(default_factory=dict, description="Arguments for model initialization")
-    fallbacks: list[str] = Field(default_factory=list, description="List of fallback model/group names")
+    fallbacks: list[str] = Field(default_factory=list, description="List of fallback model/alias names")
     kind: Literal["model"] = Field(default="model", description="Indicates this is a model item")
 
     def to_catalog_item(self) -> AICatalogItem:
@@ -39,22 +39,22 @@ class AIModelCatalogItem(BaseModel):
         )
 
 
-class AIModelGroupCatalogItem(BaseModel):
-    name: str = Field(..., description="The name of the model group")
-    type: AIModelType = Field(..., description="The type of models in this group")
-    target: str = Field(..., description="The target model name for this group")
-    help: str | None = Field(default=None, description="Description of the model group")
-    fallbacks: list[str] = Field(default_factory=list, description="List of fallback model/group names")
-    kind: Literal["group"] = Field(default="group", description="Indicates this is a group item")
+class AIModelAliasItem(BaseModel):
+    name: str = Field(..., description="The name of the model alias")
+    type: AIModelType = Field(..., description="The type of models in this alias")
+    target: str = Field(..., description="The target model name for this alias")
+    help: str | None = Field(default=None, description="Description of the model alias")
+    fallbacks: list[str] = Field(default_factory=list, description="List of fallback model/alias names")
+    kind: Literal["alias"] = Field(default="alias", description="Indicates this is an alias item")
 
     def to_catalog_item(self) -> AICatalogItem:
-        base_desc = self.help or 'Model Group'
+        base_desc = self.help or 'Model Alias'
         full_desc = f"{base_desc} (Target: {self.target})"
 
         return AICatalogItem(
             name=self.name,
             type=self.type,
-            provider="group",
+            provider="alias",
             help=full_desc,
-            kind="group",
+            kind="alias",
         )

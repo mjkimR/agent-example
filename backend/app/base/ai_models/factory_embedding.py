@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING
 
-from app.base.ai_models.schemas import AIModelCatalogItem
+from app.base.ai_models.schemas import AIModelItem
 
 if TYPE_CHECKING:
     from langchain_core.embeddings import Embeddings
 
 
 class EmbeddingFactory:
-    def create_model(self, config: AIModelCatalogItem) -> 'Embeddings':
+    def create_model(self, config: AIModelItem) -> 'Embeddings':
         provider = config.provider
         args = config.args
 

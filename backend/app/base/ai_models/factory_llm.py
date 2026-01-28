@@ -1,13 +1,13 @@
 from typing import TYPE_CHECKING
 
-from app.base.ai_models.schemas import AIModelCatalogItem
+from app.base.ai_models.schemas import AIModelItem
 
 if TYPE_CHECKING:
     from langchain_core.language_models import BaseChatModel
 
 
 class LLMFactory:
-    def create_model(self, config: AIModelCatalogItem) -> 'BaseChatModel':
+    def create_model(self, config: AIModelItem) -> 'BaseChatModel':
         provider = config.provider
         args = config.args
 
