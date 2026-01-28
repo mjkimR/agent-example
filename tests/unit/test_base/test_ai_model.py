@@ -16,10 +16,13 @@ mock_google = MagicMock()
 @pytest.fixture(autouse=True)
 def mock_langchain_imports():
     """Mocks the langchain provider modules for the duration of a test."""
-    with patch.dict('sys.modules', {
-        'langchain_openai': mock_openai,
-        'langchain_google_genai': mock_google,
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "langchain_openai": mock_openai,
+            "langchain_google_genai": mock_google,
+        },
+    ):
         yield
         mock_openai.reset_mock()
         mock_google.reset_mock()
@@ -50,7 +53,7 @@ def mock_schemas():
 
         def model_dump(self, exclude_unset=False):
             # Simple version for testing
-            return {k: v for k, v in self.__dict__.items() if not k.startswith('_')}
+            return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
     class MockAIModelItem(MockBaseItem):
         def __init__(self, **kwargs):
@@ -69,16 +72,21 @@ def mock_schemas():
             self.fallbacks = kwargs.get("fallbacks", [])
 
         def to_catalog_item(self):
-            return MagicMock(kind="alias", name=self.name, provider=None)  # Aliases don't have a provider
+            return MagicMock(
+                kind="alias", name=self.name, provider=None
+            )  # Aliases don't have a provider
 
-    with patch.dict('sys.modules', {
-        'app.base.ai_models.schemas': MagicMock(
-            AIModelType=MockAIModelType,
-            AIModelItem=MockAIModelItem,
-            AIModelAliasItem=MockAIModelAliasItem,
-            AICatalogItem=MagicMock
-        )
-    }):
+    with patch.dict(
+        "sys.modules",
+        {
+            "app.base.ai_models.schemas": MagicMock(
+                AIModelType=MockAIModelType,
+                AIModelItem=MockAIModelItem,
+                AIModelAliasItem=MockAIModelAliasItem,
+                AICatalogItem=MagicMock,
+            )
+        },
+    ):
         yield
 
 
@@ -118,24 +126,53 @@ class TestAIModelFactory:
     @pytest.fixture
     def valid_config(self):
         return {
-            "catalog": [
-                {"name": "gpt-4", "type": "llm", "provider": "openai", "args": {"model": "gpt-4"}},
-                {"name": "gemini-pro", "type": "llm", "provider": "google", "args": {"model": "gemini-pro"}},
-                {"name": "fallback-gpt", "type": "llm", "provider": "openai", "args": {"model": "gpt-3.5-turbo"}},
-                {"name": "text-embedding-ada", "type": "text-embedding", "provider": "openai", "args": {"model": "text-embedding-ada-002"}},
+            "models": [
+                {
+                    "name": "gpt-4",
+                    "type": "llm",
+                    "provider": "openai",
+                    "args": {"model": "gpt-4"},
+                },
+                {
+                    "name": "gemini-pro",
+                    "type": "llm",
+                    "provider": "google",
+                    "args": {"model": "gemini-pro"},
+                },
+                {
+                    "name": "fallback-gpt",
+                    "type": "llm",
+                    "provider": "openai",
+                    "args": {"model": "gpt-3.5-turbo"},
+                },
+                {
+                    "name": "text-embedding-ada",
+                    "type": "text-embedding",
+                    "provider": "openai",
+                    "args": {"model": "text-embedding-ada-002"},
+                },
             ],
             "aliases": [
-                {"name": "main-llm", "type": "llm", "target": "gpt-4", "fallbacks": ["fallback-gpt"]},
-                {"name": "main-embedding", "type": "text-embedding", "target": "text-embedding-ada"},
-            ]
+                {
+                    "name": "main-llm",
+                    "type": "llm",
+                    "target": "gpt-4",
+                    "fallbacks": ["fallback-gpt"],
+                },
+                {
+                    "name": "main-embedding",
+                    "type": "text-embedding",
+                    "target": "text-embedding-ada",
+                },
+            ],
         }
 
     def test_initialization_with_valid_config(self, temp_config_file, valid_config):
         config_path = temp_config_file(valid_config)
         factory = AIModelFactory(config_path)
-        assert "gpt-4" in factory.catalog
+        assert "gpt-4" in factory.models
         assert "main-llm" in factory.aliases
-        assert hasattr(factory.catalog['gpt-4'], 'provider')  # Check it's an object
+        assert hasattr(factory.models["gpt-4"], "provider")  # Check it's an object
         assert factory._initialized
 
     def test_get_llm(self, temp_config_file, valid_config):
@@ -147,18 +184,20 @@ class TestAIModelFactory:
         assert llm == "mock_llm"
         # Assert that a dictionary representation is passed
         factory.llm_factory.create_model.assert_called_once_with(
-            valid_config["catalog"][0]
+            valid_config["models"][0]
         )
 
     def test_get_embedding(self, temp_config_file, valid_config):
         config_path = temp_config_file(valid_config)
         factory = AIModelFactory(config_path)
-        factory.embedding_factory.create_model = MagicMock(return_value="mock_embedding")
+        factory.embedding_factory.create_model = MagicMock(
+            return_value="mock_embedding"
+        )
 
         embedding = factory.get_embedding("text-embedding-ada")
         assert embedding == "mock_embedding"
         factory.embedding_factory.create_model.assert_called_once_with(
-            valid_config["catalog"][3]
+            valid_config["models"][3]
         )
 
     def test_get_fallback_llms(self, temp_config_file, valid_config):
@@ -166,7 +205,9 @@ class TestAIModelFactory:
         factory = AIModelFactory(config_path)
         mock_fallback_llm = MagicMock()
 
-        with patch.object(factory, 'get_llm', return_value=mock_fallback_llm) as mock_get_llm:
+        with patch.object(
+            factory, "get_llm", return_value=mock_fallback_llm
+        ) as mock_get_llm:
             fallbacks = factory.get_fallback_llms("main-llm")
             assert fallbacks == [mock_fallback_llm]
             mock_get_llm.assert_called_once_with("fallback-gpt")
@@ -197,80 +238,118 @@ class TestAIModelFactoryValidation:
 
     @pytest.fixture(autouse=True)
     def clear_singleton(self):
-        if AIModelFactory._instance: AIModelFactory._instance = None
+        if AIModelFactory._instance:
+            AIModelFactory._instance = None
         yield
-        if AIModelFactory._instance: AIModelFactory._instance = None
+        if AIModelFactory._instance:
+            AIModelFactory._instance = None
 
     def test_init_error_on_bad_field(self, temp_config_file):
         """Tests that Pydantic validation errors are caught on init."""
-        config = {"catalog": [{"name": "gpt-4"}]}  # Missing 'type'
+        config = {"models": [{"name": "gpt-4"}]}  # Missing 'type'
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match="Error in catalog item 'gpt-4'"):
+        with pytest.raises(ValueError, match="Error in models item 'gpt-4'"):
             AIModelFactory(config_path)
 
     def test_alias_target_not_exist(self, temp_config_file):
         config = {
-            "catalog": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
-            "aliases": [{"name": "my-alias", "type": "llm", "target": "non-existent"}]
+            "models": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
+            "aliases": [{"name": "my-alias", "type": "llm", "target": "non-existent"}],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match="refers to non-existent target 'non-existent'"):
+        with pytest.raises(
+            ValueError, match="refers to non-existent target 'non-existent'"
+        ):
             AIModelFactory(config_path)
 
     def test_alias_target_type_mismatch(self, temp_config_file):
         config = {
-            "catalog": [{"name": "my-model", "type": "text-embedding", "provider": "openai"}],
-            "aliases": [{"name": "my-alias", "type": "llm", "target": "my-model"}]
+            "models": [
+                {"name": "my-model", "type": "text-embedding", "provider": "openai"}
+            ],
+            "aliases": [{"name": "my-alias", "type": "llm", "target": "my-model"}],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match=r"does not match final target 'my-model' type \(text-embedding\)"):
+        with pytest.raises(
+            ValueError,
+            match=r"does not match final target 'my-model' type \(text-embedding\)",
+        ):
             AIModelFactory(config_path)
 
     def test_fallback_type_mismatch(self, temp_config_file):
         """Tests that a fallback's type mismatch with the alias's type raises an error."""
         config = {
-            "catalog": [
+            "models": [
                 {"name": "gpt-4", "type": "llm", "provider": "openai"},
-                {"name": "my-embedding", "type": "text-embedding", "provider": "openai"}
+                {
+                    "name": "my-embedding",
+                    "type": "text-embedding",
+                    "provider": "openai",
+                },
             ],
-            "aliases": [{"name": "my-alias", "type": "llm", "target": "gpt-4", "fallbacks": ["my-embedding"]}]
+            "aliases": [
+                {
+                    "name": "my-alias",
+                    "type": "llm",
+                    "target": "gpt-4",
+                    "fallbacks": ["my-embedding"],
+                }
+            ],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match=r"fallback 'my-embedding' type \(text-embedding\) does not match alias type \(llm\)"):
+        with pytest.raises(
+            ValueError,
+            match=r"fallback 'my-embedding' type \(text-embedding\) does not match alias type \(llm\)",
+        ):
             AIModelFactory(config_path)
 
     def test_name_conflict(self, temp_config_file):
-        """Tests that a name conflict between catalog and aliases raises an error."""
+        """Tests that a name conflict between models and aliases raises an error."""
         config = {
-            "catalog": [
+            "models": [
                 {"name": "conflict-name", "type": "llm", "provider": "openai"},
-                {"name": "gpt-4", "type": "llm", "provider": "openai"}
+                {"name": "gpt-4", "type": "llm", "provider": "openai"},
             ],
-            "aliases": [{"name": "conflict-name", "type": "llm", "target": "gpt-4"}]
+            "aliases": [{"name": "conflict-name", "type": "llm", "target": "gpt-4"}],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match="Model names must be unique. Conflicts found: {'conflict-name'}"):
+        with pytest.raises(
+            ValueError,
+            match="Model names must be unique. Conflicts found: {'conflict-name'}",
+        ):
             AIModelFactory(config_path)
 
     def test_self_referential_fallback(self, temp_config_file):
         """Tests the new check for self-referential fallbacks."""
         config = {
-            "catalog": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
-            "aliases": [{"name": "my-alias", "type": "llm", "target": "gpt-4", "fallbacks": ["my-alias"]}]
+            "models": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
+            "aliases": [
+                {
+                    "name": "my-alias",
+                    "type": "llm",
+                    "target": "gpt-4",
+                    "fallbacks": ["my-alias"],
+                }
+            ],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match="Alias 'my-alias' cannot have itself as a fallback"):
+        with pytest.raises(
+            ValueError, match="Alias 'my-alias' cannot have itself as a fallback"
+        ):
             AIModelFactory(config_path)
 
     def test_circular_alias_target(self, temp_config_file):
         """Tests the new check for circular alias dependencies."""
         config = {
-            "catalog": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
+            "models": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
             "aliases": [
                 {"name": "alias-a", "type": "llm", "target": "alias-b"},
-                {"name": "alias-b", "type": "llm", "target": "alias-a"}
-            ]
+                {"name": "alias-b", "type": "llm", "target": "alias-a"},
+            ],
         }
         config_path = temp_config_file(config)
-        with pytest.raises(ValueError, match="Circular reference detected in alias target chain: alias-a -> alias-b"):
+        with pytest.raises(
+            ValueError,
+            match="Circular reference detected in alias target chain: alias-a -> alias-b",
+        ):
             AIModelFactory(config_path)

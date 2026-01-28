@@ -58,3 +58,50 @@ class AIModelAliasItem(BaseModel):
             help=full_desc,
             kind="alias",
         )
+
+
+class AIModelGroupItem(BaseModel):
+    name: str = Field(..., description="The name of the model group")
+    type: AIModelType = Field(..., description="The type of models in this group")
+    members: list[AICatalogItem] = Field(..., description="List of models/aliases in this group")
+    default: str = Field(..., description="The default model/alias name for this group")
+
+
+    @classmethod
+    def from_data(cls, data: dict[str, Any], catalogs: dict[str, AICatalogItem]) -> 'AIModelGroupItem':
+        _name = data.get("name")
+        _type = data.get("type")
+        _member_names = data.get("members", [])
+        _default = data.get("default")
+
+        # Basic validations
+        if not _name:
+            raise ValueError(f"Model group is missing a 'name' field.")
+        if not _type:
+            raise ValueError(f"Model group '{_name}' is missing a 'type' field.")
+        if len(_member_names) == 0:
+            raise ValueError(f"Model group '{_name}' must have at least one member.")
+        if not _default:
+            _default = _member_names[0]
+        
+        # Validate members
+        for _member_name in _member_names:
+            if _member_name not in catalogs:
+                raise ValueError(f"Model group '{_name}' has unknown member '{_member_name}'.")
+            if catalogs[_member_name].type != _type:
+                raise ValueError(
+                    f"Model group '{_name}' has member '{_member_name}' with type "
+                    f"({catalogs[_member_name].type}) that does not match group type ({_type})."
+                )
+
+        # Validate default
+        if _default not in _member_names:
+            raise ValueError(f"Model group '{_name}' has default '{_default}' which is not in its members list.")
+        
+        return cls(
+            name=_name,
+            type=_type,
+            members=[catalogs[m] for m in _member_names],
+            default=_default,
+        )
+        

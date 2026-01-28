@@ -6,7 +6,13 @@ from threading import Lock
 
 import yaml
 
-from app.base.ai_models.schemas import AIModelItem, AIModelAliasItem, AIModelType, AICatalogItem
+from app.base.ai_models.schemas import (
+    AIModelGroupItem,
+    AIModelItem,
+    AIModelAliasItem,
+    AIModelType,
+    AICatalogItem,
+)
 from app.core.config import get_app_path
 from app.core.logger import logger
 from app.base.ai_models.factory_embedding import EmbeddingFactory
@@ -20,7 +26,7 @@ if TYPE_CHECKING:
 class ConfigLoader:
     @staticmethod
     def load_yaml_with_env(path: str) -> dict[str, Any]:
-        pattern = re.compile(r'\$\{(\w+)}')
+        pattern = re.compile(r"\$\{(\w+)}")
 
         def replace_env(match):
             env_var = match.group(1)
@@ -30,7 +36,7 @@ class ConfigLoader:
         if not os.path.exists(path):
             raise FileNotFoundError(f"Configuration file not found: {path}")
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             content = f.read()
             content = pattern.sub(replace_env, content)
             return yaml.safe_load(content)
@@ -56,24 +62,11 @@ class AIModelFactory:
         logger.info(f"[System] Loading Catalog from {config_path}...")
         raw_config = ConfigLoader.load_yaml_with_env(config_path)
 
-        self.catalog: dict[str, AIModelItem] = {}
+        self.models: dict[str, AIModelItem] = {}
         self.aliases: dict[str, AIModelAliasItem] = {}
-        for item in raw_config.get('catalog', []):
-            if "name" not in item:
-                raise ValueError("Each catalog item must have a 'name' field.")
-            name = item["name"]
-            try:
-                self.catalog[name] = AIModelItem(**item)
-            except Exception as e:
-                raise ValueError(f"Error in catalog item '{name}': {str(e)}") from e
-        for item in raw_config.get('aliases', []):
-            if "name" not in item:
-                raise ValueError("Each alias item must have a 'name' field.")
-            name = item["name"]
-            try:
-                self.aliases[name] = AIModelAliasItem(**item)
-            except Exception as e:
-                raise ValueError(f"Error in alias item '{name}': {str(e)}") from e
+        self.groups: dict[str, AIModelGroupItem] = {}
+
+        self._initial_dictionaries(raw_config)
 
         self._validate_config()
 
@@ -83,61 +76,106 @@ class AIModelFactory:
         self._config_path = config_path  # Save path for reload
         self._initialized = True
 
+    def _initial_dictionaries(self, raw_config: dict[str, Any]):
+        for item in raw_config.get("models", []):
+            if "name" not in item:
+                raise ValueError("Each models item must have a 'name' field.")
+            name = item["name"]
+            try:
+                self.models[name] = AIModelItem(**item)
+            except Exception as e:
+                raise ValueError(f"Error in models item '{name}': {str(e)}") from e
+        for item in raw_config.get("aliases", []):
+            if "name" not in item:
+                raise ValueError("Each alias item must have a 'name' field.")
+            name = item["name"]
+            try:
+                self.aliases[name] = AIModelAliasItem(**item)
+            except Exception as e:
+                raise ValueError(f"Error in alias item '{name}': {str(e)}") from e
+        catalogs = {
+            **{name: model.to_catalog_item() for name, model in self.models.items()},
+            **{name: alias.to_catalog_item() for name, alias in self.aliases.items()},
+        }
+        for item in raw_config.get("groups", []):
+            if "name" not in item:
+                raise ValueError("Each group item must have a 'name' field.")
+            name = item["name"]
+            try:
+                self.groups[name] = AIModelGroupItem.from_data(item, catalogs)
+            except Exception as e:
+                raise ValueError(f"Error in group item '{name}': {str(e)}") from e
+
     def _validate_config(self):
         """Validate the integrity and type correctness of the configuration file."""
         # 1. Alias Item Validation
         for name, alias in self.aliases.items():
-            # (5) Circular Alias target Check & Final Target Resolution
-            visited = set()
-            current_target_name = alias.target
-            path = [name]
-            while current_target_name in self.aliases:
-                if current_target_name in visited:
-                    raise ValueError(f"Configuration Error: Circular reference detected in alias target chain: {' -> '.join(path)}")
-                visited.add(current_target_name)
-                path.append(current_target_name)
-                current_target_name = self.aliases[current_target_name].target
-
-            resolved_target_name = current_target_name
+            target_name = alias.target
 
             # (1) Target Existence Check
-            if resolved_target_name not in self.catalog:
-                raise ValueError(f"Configuration Error: Alias '{name}' refers to non-existent target '{resolved_target_name}'.")
+            if target_name not in self.models:
+                raise ValueError(
+                    f"Configuration Error: Alias '{name}' refers to non-existent target '{target_name}'."
+                )
 
             # (2) Type Consistency Check (Alias Type vs Target Type)
             alias_type = alias.type
-            target_type = self.catalog[resolved_target_name].type
+            target_type = self.models[target_name].type
             if alias_type != target_type:
-                raise ValueError(f"Configuration Error: Alias '{name}' type ({alias_type.value}) does not match final target '{resolved_target_name}' type ({target_type.value}).")
+                raise ValueError(
+                    f"Configuration Error: Alias '{name}' type ({alias_type.value}) does not match final target '{target_name}' type ({target_type.value})."
+                )
 
             # (3) Fallback Validation
             for fb_name in alias.fallbacks:
-                if fb_name in self.catalog:
-                    fb_type = self.catalog[fb_name].type
+                if fb_name in self.models:
+                    fb_type = self.models[fb_name].type
                 elif fb_name in self.aliases:
                     fb_type = self.aliases[fb_name].type
                 else:
-                    raise ValueError(f"Configuration Error: Alias '{name}' has fallback to non-existent model/alias '{fb_name}'.")
+                    raise ValueError(
+                        f"Configuration Error: Alias '{name}' has fallback to non-existent model/alias '{fb_name}'."
+                    )
                 if alias_type != fb_type:
-                    raise ValueError(f"Configuration Error: Alias '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match alias type ({alias_type.value}).")
+                    raise ValueError(
+                        f"Configuration Error: Alias '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match alias type ({alias_type.value})."
+                    )
 
             # (4) Self-referential Fallback Check
             if name in alias.fallbacks:
-                raise ValueError(f"Configuration Error: Alias '{name}' cannot have itself as a fallback.")
+                raise ValueError(
+                    f"Configuration Error: Alias '{name}' cannot have itself as a fallback."
+                )
+
+            # (5) Circular Target Check
+            visited = set()
+            current = name
+            chain = []
+            while current in self.aliases:
+                if current in visited:
+                    chain.append(current)
+                    raise ValueError(
+                        f"Configuration Error: Circular reference detected in alias target chain: {' -> '.join(chain)}"
+                    )
+                visited.add(current)
+                chain.append(current)
+                current = self.aliases[current].target
 
         # 2. Name Conflict Check
-        catalog_names = set(self.catalog.keys())
+        model_names = set(self.models.keys())
         alias_names = set(self.aliases.keys())
-        conflicts = catalog_names.intersection(alias_names)
+        conflicts = model_names.intersection(alias_names)
         if conflicts:
-            raise ValueError(f"Configuration Error: Model names must be unique. Conflicts found: {conflicts}")
+            raise ValueError(
+                f"Configuration Error: Model names must be unique. Conflicts found: {conflicts}"
+            )
 
     @lru_cache(maxsize=32)
-    def _get_llm(self, name: str) -> 'BaseChatModel':
+    def _get_llm(self, name: str) -> "BaseChatModel":
         config = self._resolve_config(name, AIModelType.LLM)
         return self.llm_factory.create_model(config.model_dump(exclude_unset=True))
 
-    def get_llm(self, name: str, **kwargs) -> 'BaseChatModel':
+    def get_llm(self, name: str, **kwargs) -> "BaseChatModel":
         """
         LRU Cache applied:
         If the same 'name' is requested, returns the cached object instead of executing the function
@@ -154,7 +192,7 @@ class AIModelFactory:
             model = model.bind(**kwargs)
         return model
 
-    def get_fallback_llms(self, name: str) -> list['BaseChatModel']:
+    def get_fallback_llms(self, name: str) -> list["BaseChatModel"]:
         """
         [Helper] Returns the list of fallback models configured for this model.
 
@@ -168,15 +206,15 @@ class AIModelFactory:
                 raise ValueError(
                     f"Type mismatch: Alias '{name}' is type '{config.type.value}', but LLM fallbacks were requested."
                 )
-        elif name in self.catalog:
+        elif name in self.models:
             # A base model can also have fallbacks defined.
-            config = self.catalog[name]
+            config = self.models[name]
             if config.type != AIModelType.LLM:
                 raise ValueError(
                     f"Type mismatch: Model '{name}' is type '{config.type.value}', but LLM fallbacks were requested."
                 )
         else:
-            raise ValueError(f"Model or Alias '{name}' not found in catalog or aliases.")
+            raise ValueError(f"Model or Alias '{name}' not found in models or aliases.")
 
         fallback_models = []
         for fb_name in config.fallbacks:
@@ -185,15 +223,19 @@ class AIModelFactory:
         return fallback_models
 
     @lru_cache(maxsize=8)
-    def _get_embedding(self, name: str) -> 'Embeddings':
+    def _get_embedding(self, name: str) -> "Embeddings":
         config = self._resolve_config(name, AIModelType.EMBEDDING)
-        return self.embedding_factory.create_model(config.model_dump(exclude_unset=True))
+        return self.embedding_factory.create_model(
+            config.model_dump(exclude_unset=True)
+        )
 
-    def get_embedding(self, name: str) -> 'Embeddings':
+    def get_embedding(self, name: str) -> "Embeddings":
         model = self._get_embedding(name)
         return model
 
-    def _resolve_config(self, name: str, expected_type: AIModelType | str | None = None) -> AIModelItem:
+    def _resolve_config(
+        self, name: str, expected_type: AIModelType | str | None = None
+    ) -> AIModelItem:
         """Name resolution"""
         # 1. Alias Resolution (If name is an alias, resolve to target model)
         while name in self.aliases:
@@ -201,14 +243,18 @@ class AIModelFactory:
             name = alias.target
 
         # 2. Existence Check
-        if name not in self.catalog:
-            raise ValueError(f"Model '{name}' not found in catalog.")
+        if name not in self.models:
+            raise ValueError(f"Model '{name}' not found in models.")
 
-        config = self.catalog[name]
+        config = self.models[name]
 
         # 3. Usage Check
         if expected_type:
-            req_type = AIModelType(expected_type) if isinstance(expected_type, str) else expected_type
+            req_type = (
+                AIModelType(expected_type)
+                if isinstance(expected_type, str)
+                else expected_type
+            )
             actual_type = config.type
             if actual_type != req_type:
                 raise ValueError(
@@ -227,16 +273,18 @@ class AIModelFactory:
         self.__init__(self._config_path)
 
     def get_catalog(self, model_type: AIModelType | str) -> list[AICatalogItem]:
-        target_type = AIModelType(model_type) if isinstance(model_type, str) else model_type
+        target_type = (
+            AIModelType(model_type) if isinstance(model_type, str) else model_type
+        )
         results: list[AICatalogItem] = []
 
-        # 1. Catalog
-        for name, info in self.catalog.items():
+        # 1. Models
+        for info in self.models.values():
             if info.type == target_type:
                 results.append(info.to_catalog_item())
 
         # 2. Aliases
-        for name, info in self.aliases.items():
+        for info in self.aliases.values():
             if info.type == target_type:
                 results.append(info.to_catalog_item())
 
