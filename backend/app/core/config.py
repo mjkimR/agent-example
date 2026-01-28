@@ -1,7 +1,7 @@
 import functools
 import os
 
-from pydantic import SecretStr, EmailStr, Field
+from pydantic import SecretStr, Field
 from pydantic_settings import BaseSettings
 import pathlib
 
@@ -9,6 +9,12 @@ import pathlib
 def get_repo_path():
     """Get the path to the repository."""
     path = str(pathlib.Path(__file__).parent.parent.parent.parent.resolve())
+    return path
+
+
+def get_app_path():
+    """Get the path to the app directory."""
+    path = str(pathlib.Path(__file__).parent.parent.parent.resolve())
     return path
 
 
@@ -28,13 +34,7 @@ if os.path.exists(get_env_filename()):
 class AppSettings(BaseSettings):
     DATABASE_URL: str = Field(default=f"sqlite+aiosqlite:///{get_repo_path()}/.test.db")
 
-    FIRST_USER_EMAIL: EmailStr
-    FIRST_USER_PASSWORD: SecretStr
-
-    SECRET_KEY: SecretStr  # openssl rand -hex 64
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=10)
-
-    CHROMA_PATH: str = Field(default=f"{get_repo_path()}/.chroma")
+    # CHROMA_PATH: str = Field(default=f"{get_repo_path()}/.chroma")
 
 
 @functools.lru_cache

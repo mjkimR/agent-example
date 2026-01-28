@@ -1,11 +1,10 @@
 """Unit tests for app.base.models.mixin module."""
 
-
 from app.base.models.mixin import (
     UUIDMixin,
     TimestampMixin,
     SoftDeleteMixin,
-    AuditMixin, TaggableMixin,
+    TaggableMixin,
 )
 
 
@@ -144,14 +143,6 @@ class TestMixinDefaults:
         """SoftDeleteMixin should default is_deleted to False."""
         assert hasattr(SoftDeleteMixin, 'is_deleted')
         assert hasattr(SoftDeleteMixin, 'deleted_at')
-
-    def test_audit_mixin_has_created_by(self):
-        """AuditMixin should have created_by field."""
-        assert hasattr(AuditMixin, 'created_by')
-
-    def test_audit_mixin_has_updated_by(self):
-        """AuditMixin should have updated_by field."""
-        assert hasattr(AuditMixin, 'updated_by')
 
     def test_taggable_mixin_has_tags(self):
         """TaggableMixin should have tags field."""

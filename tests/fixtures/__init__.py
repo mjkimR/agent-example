@@ -14,12 +14,6 @@ from tests.fixtures.clients import (
     client_fixture,
     unauthenticated_client_fixture,
 )
-from tests.fixtures.auth import (
-    user_service,
-    admin_user,
-    admin_token,
-    admin_headers,
-)
 
 __all__ = [
     # Database fixtures
@@ -32,9 +26,4 @@ __all__ = [
     "app_fixture",
     "client_fixture",
     "unauthenticated_client_fixture",
-    # Auth fixtures
-    "user_service",
-    "admin_user",
-    "admin_token",
-    "admin_headers",
 ]

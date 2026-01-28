@@ -23,3 +23,4 @@ wheels/
 .test*
 **/logs
 .references
+catalog.yml

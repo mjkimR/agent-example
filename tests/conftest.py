@@ -57,14 +57,6 @@ from tests.fixtures.db import (
     session_fixture,
 )
 
-# Authentication fixtures
-from tests.fixtures.auth import (
-    user_service,
-    admin_user,
-    admin_token,
-    admin_headers,
-)
-
 # HTTP Client fixtures
 from tests.fixtures.clients import (
     AsyncClientWithJson,
