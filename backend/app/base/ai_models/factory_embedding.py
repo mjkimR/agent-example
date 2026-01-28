@@ -7,19 +7,21 @@ if TYPE_CHECKING:
 
 
 class EmbeddingFactory:
-    def create_model(self, config: AIModelItem) -> 'Embeddings':
+    def create_model(self, config: AIModelItem) -> "Embeddings":
         provider = config.provider
         args = config.args
 
         try:
             match provider:
-                case 'openai-compatible' | 'openai':
+                case "openai-compatible" | "openai":
                     from langchain_openai import OpenAIEmbeddings
+
                     return OpenAIEmbeddings(**args)
-                case 'google':
+                case "google":
                     from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                    if 'api_key' in args:
-                        args['google_api_key'] = args.pop('api_key')
+
+                    if "api_key" in args:
+                        args["google_api_key"] = args.pop("api_key")
                     return GoogleGenerativeAIEmbeddings(**args)
                 case _:
                     raise ValueError(f"Unsupported Embedding provider: {provider}")
