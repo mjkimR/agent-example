@@ -14,11 +14,11 @@ class LLMFactory:
         try:
             match provider:
                 case "openai-compatible" | "openai":
-                    from langchain_openai import ChatOpenAI
+                    from langchain_openai import ChatOpenAI  # type: ignore
 
                     return ChatOpenAI(**args)
                 case "google":
-                    from langchain_google_genai import ChatGoogleGenerativeAI
+                    from langchain_google_genai import ChatGoogleGenerativeAI  # type: ignore
 
                     if "api_key" in args:
                         args["google_api_key"] = args.pop("api_key")

@@ -14,11 +14,11 @@ class EmbeddingFactory:
         try:
             match provider:
                 case "openai-compatible" | "openai":
-                    from langchain_openai import OpenAIEmbeddings
+                    from langchain_openai import OpenAIEmbeddings  # type: ignore
 
                     return OpenAIEmbeddings(**args)
                 case "google":
-                    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                    from langchain_google_genai import GoogleGenerativeAIEmbeddings  # type: ignore
 
                     if "api_key" in args:
                         args["google_api_key"] = args.pop("api_key")
