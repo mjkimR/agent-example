@@ -113,17 +113,20 @@ class AIModelFactory:
             target_name = alias.target
 
             # (1) Target Existence Check
-            if target_name not in self.models:
+            if target_name not in self.models and target_name not in self.aliases:
                 raise ValueError(
                     f"Configuration Error: Alias '{name}' refers to non-existent target '{target_name}'."
                 )
+            target = (
+                self.models[target_name]
+                if target_name in self.models
+                else self.aliases[target_name]
+            )
 
             # (2) Type Consistency Check (Alias Type vs Target Type)
-            alias_type = alias.type
-            target_type = self.models[target_name].type
-            if alias_type != target_type:
+            if alias.type != target.type:
                 raise ValueError(
-                    f"Configuration Error: Alias '{name}' type ({alias_type.value}) does not match final target '{target_name}' type ({target_type.value})."
+                    f"Configuration Error: Alias '{name}' type ({alias.type.value}) does not match final target '{target_name}' type ({target.type.value})."
                 )
 
             # (3) Fallback Validation
@@ -136,9 +139,9 @@ class AIModelFactory:
                     raise ValueError(
                         f"Configuration Error: Alias '{name}' has fallback to non-existent model/alias '{fb_name}'."
                     )
-                if alias_type != fb_type:
+                if alias.type != fb_type:
                     raise ValueError(
-                        f"Configuration Error: Alias '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match alias type ({alias_type.value})."
+                        f"Configuration Error: Alias '{name}' fallback '{fb_name}' type ({fb_type.value}) does not match alias type ({alias.type.value})."
                     )
 
             # (4) Self-referential Fallback Check
@@ -289,3 +292,8 @@ class AIModelFactory:
                 results.append(info.to_catalog_item())
 
         return sorted(results, key=lambda x: (x.kind == "alias", x.provider, x.name))
+
+    def get_group(self, name: str) -> AIModelGroupItem:
+        if name not in self.groups:
+            raise ValueError(f"Model group '{name}' not found.")
+        return self.groups[name]

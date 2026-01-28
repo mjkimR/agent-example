@@ -165,6 +165,14 @@ class TestAIModelFactory:
                     "target": "text-embedding-ada",
                 },
             ],
+            "groups": [
+                {
+                    "name": "default-group",
+                    "type": "llm",
+                    "members": ["main-llm", "gemini-pro"],
+                    "default": "main-llm",
+                }
+            ],
         }
 
     def test_initialization_with_valid_config(self, temp_config_file, valid_config):
@@ -231,6 +239,19 @@ class TestAIModelFactory:
         assert len(names) == 4
         assert names == ["gemini-pro", "fallback-gpt", "gpt-4", "main-llm"]
         assert kinds == ["model", "model", "model", "alias"]
+
+    def test_get_group(self, temp_config_file, valid_config):
+        config_path = temp_config_file(valid_config)
+        factory = AIModelFactory(config_path)
+
+        group = factory.get_group("default-group")
+        assert group.name == "default-group"
+        assert group.type == factory.models["gpt-4"].type  # llm
+        assert group.default == "main-llm"
+        assert set(member.name for member in group.members) == {
+            "main-llm",
+            "gemini-pro",
+        }
 
 
 class TestAIModelFactoryValidation:
