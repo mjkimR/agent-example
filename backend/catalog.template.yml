@@ -22,6 +22,20 @@ models:
     args:
       model: gpt-4
       api_key: "${OPENAI_API_KEY}"
+ 
+  - provider: openai
+    name: gpt-5
+    type: llm
+    args:
+      model: gpt-5
+      api_key: "${OPENAI_API_KEY}"
+    # Additional parameter specifications
+    param_spec:
+      exclude:
+        - temperature # gpt-5 does not support temperature
+      map:
+        max_tokens: max_completion_tokens # gpt-5 does not support max_tokens: renamed to max_completion_tokens
+  
 
   # - Embedding Models
   - provider: openai-compatible
