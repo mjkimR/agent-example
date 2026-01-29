@@ -26,13 +26,21 @@ class FeedbackService(
     BaseUpdateServiceMixin[FeedbackRepository, FeedbackLogModel, FeedbackUpdate, FeedbackContextKwargs],
     BaseDeleteServiceMixin[FeedbackRepository, FeedbackLogModel, FeedbackContextKwargs],
 ):
+    context_model = FeedbackContextKwargs
+    fk_name = "user_profile_id"
+
     def __init__(
             self,
             repo: Annotated[FeedbackRepository, Depends()],
             parent_repo: Annotated[UserProfileRepository, Depends()]
     ):
-        self.repo = repo
-        self.context_model = FeedbackContextKwargs
+        self._repo = repo
+        self._parent_repo = parent_repo
 
-        self.parent_repo = parent_repo
-        self.fk_name = "user_profile_id"
+    @property
+    def repo(self) -> FeedbackRepository:
+        return self._repo
+
+    @property
+    def parent_repo(self) -> UserProfileRepository:
+        return self._parent_repo

@@ -28,12 +28,17 @@ class UserProfileService(
     BaseDeleteServiceMixin[UserProfileModel, UserProfileRepository, UserProfileContextKwargs],
 ):
     """Service for user profile operations."""
+    context_model = UserProfileContextKwargs
 
     def __init__(
             self,
             repo: Annotated[UserProfileRepository, Depends()],
     ):
-        self.repo: UserProfileRepository = repo
+        self._repo: UserProfileRepository = repo
+
+    @property
+    def repo(self) -> UserProfileRepository:
+        return self._repo
 
     async def get_or_create(self, session: AsyncSession) -> UserProfileModel:
         """Get existing profile or create default one."""

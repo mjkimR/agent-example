@@ -7,12 +7,10 @@ from app.base.services.base import (
 )
 from app.base.services.exists_check_hook import ExistsCheckHooksMixin
 from app.base.services.nested_resource_hook import NestedResourceHooksMixin, NestedResourceContextKwargs
-from app.base.repos import VectorStorePort
 from app.features.mistake.models import MistakeModel
 from app.features.mistake.repos import MistakeRepository
 from app.features.mistake.schemas import MistakeCreate, MistakeUpdate
 from app.features.user_profile.repos import UserProfileRepository
-from app.base.deps import get_vector_store
 
 
 class MistakeContextKwargs(NestedResourceContextKwargs):
@@ -28,15 +26,21 @@ class MistakeService(
     BaseUpdateServiceMixin[MistakeRepository, MistakeModel, MistakeUpdate, MistakeContextKwargs],
     BaseDeleteServiceMixin[MistakeRepository, MistakeModel, MistakeContextKwargs],
 ):
+    context_model = MistakeContextKwargs
+    fk_name = "user_profile_id"
+
     def __init__(
             self,
             repo: Annotated[MistakeRepository, Depends()],
             parent_repo: Annotated[UserProfileRepository, Depends()],
-            vector_store: Annotated[VectorStorePort, Depends(get_vector_store)],
     ):
-        self.repo = repo
-        self.context_model = MistakeContextKwargs
+        self._repo = repo
+        self._parent_repo = parent_repo
 
-        self.parent_repo = parent_repo
-        self.fk_name = "user_profile_id"
-        self.vector_store = vector_store
+    @property
+    def repo(self) -> MistakeRepository:
+        return self._repo
+
+    @property
+    def parent_repo(self) -> UserProfileRepository:
+        return self._parent_repo
