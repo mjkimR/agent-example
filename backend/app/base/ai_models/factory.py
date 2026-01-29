@@ -30,8 +30,10 @@ class ConfigLoader:
 
         def replace_env(match):
             env_var = match.group(1)
-            # If the environment variable does not exist, leave as is (or you can raise an error)
-            return os.environ.get(env_var, match.group(0))
+            value = os.environ.get(env_var)
+            if value is None:
+                logger.warning(f"Environment variable '{env_var}' is not set but required in config.")
+            return value
 
         if not os.path.exists(path):
             raise FileNotFoundError(f"Configuration file not found: {path}")
@@ -236,8 +238,17 @@ class AIModelFactory:
         model = self._get_embedding(name)
         return model
 
+    def get_embedding_dimension(self, name: str) -> int:
+        """
+        Returns the dimension of the embedding model.
+        """
+        config = self._resolve_config(name, AIModelType.EMBEDDING)
+        if config.dimension:
+            return config.dimension
+        return self.embedding_factory.get_dimension(config)
+
     def _resolve_config(
-        self, name: str, expected_type: AIModelType | str | None = None
+            self, name: str, expected_type: AIModelType | str | None = None
     ) -> AIModelItem:
         """Name resolution"""
         # 1. Alias Resolution (If name is an alias, resolve to target model)

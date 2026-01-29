@@ -56,6 +56,11 @@ class AIModelItem(BaseModel):
         description="Specification for parameter exclusions and mappings",
     )
 
+    # For embedding models, optional dimension info
+    dimension: int | None = Field(
+        default=None, description="Embedding dimension size (e.g., 1536, 768)"
+    )
+
     def to_catalog_item(self) -> AICatalogItem:
         return AICatalogItem(
             name=self.name,
@@ -110,7 +115,7 @@ class AIModelGroupItem(BaseModel):
 
     @classmethod
     def from_data(
-        cls, data: dict[str, Any], catalogs: dict[str, AICatalogItem]
+            cls, data: dict[str, Any], catalogs: dict[str, AICatalogItem]
     ) -> "AIModelGroupItem":
         _name = data.get("name")
         _type = data.get("type")
@@ -136,7 +141,7 @@ class AIModelGroupItem(BaseModel):
             if catalogs[_member_name].type != _type:
                 raise ValueError(
                     f"Model group '{_name}' has member '{_member_name}' with type "
-                    f"({catalogs[_member_name].type}) that does not match group type ({_type})."
+                    f"({catalogs[_member_name].type.value}) that does not match group type ({_type})."
                 )
 
         # Validate default

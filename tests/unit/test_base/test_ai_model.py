@@ -253,6 +253,25 @@ class TestAIModelFactory:
             "gemini-pro",
         }
 
+    def test_reload(self, temp_config_file, valid_config):
+        config_path = temp_config_file(valid_config)
+        factory = AIModelFactory(config_path)
+        assert "gpt-4" in factory.models
+
+        # Modify the config file to add a new model
+        new_config = valid_config.copy()
+        new_config["models"].append({
+            "name": "new-model",
+            "type": "llm",
+            "provider": "openai",
+            "args": {"model": "gpt-5"},
+        })
+        with open(config_path, "w", encoding="utf-8") as f:
+            yaml.dump(new_config, f)
+
+        factory.reload()
+        assert "new-model" in factory.models
+
 
 class TestAIModelFactoryValidation:
     """Test suite for configuration validation in AIModelFactory."""
@@ -373,4 +392,34 @@ class TestAIModelFactoryValidation:
             ValueError,
             match="Circular reference detected in alias target chain: alias-a -> alias-b",
         ):
+            AIModelFactory(config_path)
+
+    def test_group_member_not_exist(self, temp_config_file):
+        config = {
+            "models": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
+            "groups": [{"name": "test-group", "type": "llm", "members": ["gpt-4", "non-existent"], "default": "gpt-4"}],
+        }
+        config_path = temp_config_file(config)
+        with pytest.raises(ValueError, match="Model group 'test-group' has unknown member 'non-existent'"):
+            AIModelFactory(config_path)
+
+    def test_group_member_type_mismatch(self, temp_config_file):
+        config = {
+            "models": [
+                {"name": "gpt-4", "type": "llm", "provider": "openai"},
+                {"name": "embedding", "type": "text-embedding", "provider": "openai"}
+            ],
+            "groups": [{"name": "test-group", "type": "llm", "members": ["gpt-4", "embedding"], "default": "gpt-4"}],
+        }
+        config_path = temp_config_file(config)
+        with pytest.raises(ValueError, match=r"Model group 'test-group' has member 'embedding' with type \(text-embedding\) that does not match group type \(llm\)"):
+            AIModelFactory(config_path)
+
+    def test_group_default_not_member(self, temp_config_file):
+        config = {
+            "models": [{"name": "gpt-4", "type": "llm", "provider": "openai"}],
+            "groups": [{"name": "test-group", "type": "llm", "members": ["gpt-4"], "default": "non-member"}],
+        }
+        config_path = temp_config_file(config)
+        with pytest.raises(ValueError, match="Model group 'test-group' has default 'non-member' which is not in its members list"):
             AIModelFactory(config_path)

@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING
 
 from app.base.ai_models.schemas import AIModelItem
@@ -30,3 +31,31 @@ class EmbeddingFactory:
                 f"Failed to import dependencies for provider '{provider}'. "
                 f"Please install the required package. Original error: {e}"
             )
+
+    def get_dimension(self, config: "AIModelItem") -> int:
+        """
+        Returns the vector size.
+        1. If defined in config (yaml), returns it.
+        2. If not, loads the actual model and calculates/returns it.
+        """
+        # 1. Check YAML config first
+        if config.dimension is not None:
+            return config.dimension
+
+        # 2. Calculate at runtime
+        dimension = self._calculate_dimension_dynamically(config)
+        config.dimension = dimension  # cache for future use
+        return dimension
+
+    def _calculate_dimension_dynamically(self, config: "AIModelItem") -> int:
+        """Actually performs embedding to check the dimension"""
+        try:
+            model = self.create_model(config)
+            # Test with a very short word
+            dummy_vector = model.embed_query("test")
+            logging.info(f"Determined embedding dimension for '{config.name}': {len(dummy_vector)}")
+            return len(dummy_vector)
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to determine embedding dimension for '{config.name}': {e}"
+            ) from e
