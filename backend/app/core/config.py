@@ -2,7 +2,7 @@ import functools
 import os
 
 from pydantic import SecretStr, Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import pathlib
 
 
@@ -34,9 +34,31 @@ if os.path.exists(get_env_filename()):
 class AppSettings(BaseSettings):
     DATABASE_URL: str = Field(default=f"sqlite+aiosqlite:///{get_repo_path()}/.test.db")
 
-    # CHROMA_PATH: str = Field(default=f"{get_repo_path()}/.chroma")
+    model_config = SettingsConfigDict(
+        env_ignore_empty=True,
+        validate_assignment=True,
+        extra="ignore",
+    )
+
+
+class VectorDBSettings(BaseSettings):
+    KIND: str = Field(default="qdrant")
+    URL: str = Field(default="http://localhost:6333")
+    API_KEY: SecretStr = Field()
+
+    model_config = SettingsConfigDict(
+        env_prefix="VECTOR_DB_",
+        env_ignore_empty=True,
+        validate_assignment=True,
+        extra="ignore",
+    )
 
 
 @functools.lru_cache
 def get_app_settings():
-    return AppSettings()
+    return AppSettings()  # type: ignore
+
+
+@functools.lru_cache
+def get_vector_db_settings():
+    return VectorDBSettings()  # type: ignore
